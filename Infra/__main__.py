@@ -1,10 +1,7 @@
 from ServerProvider import BlogpostObject, ProductObject
-from pulumi import Output
-import json
-import requests
 
 
-SERVER_URL = r'http://127.0.0.1:8000'
+SERVER_URL = r'http://127.0.0.1:5000'
 
 
 build_data = [
