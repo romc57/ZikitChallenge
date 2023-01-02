@@ -1,4 +1,3 @@
-runtime:
-  name: python
-  options:
-    virtualenv: venv
+name: ZikitResourceProvider
+description: Provider to create resource from backend server
+runtime: python

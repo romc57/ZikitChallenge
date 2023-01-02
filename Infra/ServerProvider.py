@@ -1,42 +1,71 @@
 from pulumi import Output, Input, ResourceOptions
+from typing import Any, Optional
 from pulumi.dynamic import *
-from rest_api_calls import *
+import requests
+import json
 
 
-class ObjectArgs(object):
-    url: Input[str]
-    name: Input[str]
-    text: Input[str]
-    category: Input[str]
+class ServerArgs(object):
+    server_url: Input[str]
+    end_point: Input[str]
+    data: Input[str]
+    blogpost_id: Optional[Input[Output]]
 
-    def __init__(self, url, name, text, category):
-        self.url = url
-        self.name = name
-        self.text = text
-        self.category = category
+    def __init__(self, server_url, end_point, data, blogpost_id=None):
+        self.server_url = server_url
+        self.end_point = end_point
+        self.data = data
+        self.blogpost_id = blogpost_id
 
 
-class ObjectProvider(ResourceProvider):
+class ServerProvider(ResourceProvider):
 
     def create(self, props):
-        data = {'name': props['name'], 'text': props['text'], 'category': props['category']}
-        res = post_request(props['url'], data)
-        outs = {"res": res, "url": props['url'], "name": props['name'], "text": props['text'], "category": props['category']}
-        return CreateResult("1", outs=outs)
+        full_url = '{}/{}'.format(props['server_url'], props['end_point'])
+        blogpost = props.get('blogpost_id', None)
+        if blogpost is not None:
+            data = json.loads(props['data'])
+            data['blogpost'] = str(blogpost)
+            data = json.dumps(data)
+        else:
+            data = props['data']
+        response = requests.post(full_url, data=data)
+        if response.status_code != 200:
+            print('Error ', response.json())
+        else:
+            inserted_obj = response.json()
+            obj_data = [inserted_obj[key] for key in inserted_obj][0]
+            obj_data_str = json.dumps(obj_data)
+            out = {'server_url': props['server_url'], 'end_point': props['end_point'], 'data': obj_data_str}
+            insert_id = str(obj_data['id'])
+            return CreateResult(id_=insert_id, outs=out)
 
-    def delete(self, id: str, props):
-        delete_request(props)
+    def delete(self, id, props):
+        full_url = '{}/{}/{}'.format(props['server_url'], props['end_point'], id)
+        requests.delete(full_url)
 
 
-class TableObject(Resource):
-    res: Output[str]
-    url: Output[str]
-    name: Output[str]
-    text: Output[str]
-    category: Output[str]
+class ServerObject(Resource):
+    server_url: Output[str]
+    end_point: Output[str]
+    data: Output[str]
 
-    def __init__(self, name, args: ObjectArgs):
-        super().__init__(ObjectProvider(), name, {'res': None, **vars(args)})
+    def __init__(self, name, args: ServerArgs, opts: Optional[ResourceOptions] = None):
+        full_args = {'server_url': None, 'end_point': None, 'data': None, **vars(args)}
+        super().__init__(ServerProvider(), name, full_args, opts)
 
 
-obj = TableObject("testst", ObjectArgs("http://127.0.0.1:8000/blogposts", "more testing", "testststst", "Pants"))
+class BlogpostObject(ServerObject):
+
+    def __init__(self, name, server_url, post_name, post_text, post_category):
+        data = json.dumps({'name': post_name, 'text': post_text, 'category': post_category})
+        super().__init__(name, ServerArgs(server_url, 'blogposts', data))
+
+
+class ProductObject(ServerObject):
+
+    def __init__(self, name, server_url, brand, prod_name, price, category, blogpost: BlogpostObject):
+        data = json.dumps({'brand': brand, 'name': prod_name, 'price': price, 'category': category,
+                           'blogpost': 0})
+        super().__init__(name, ServerArgs(server_url, 'products', data, blogpost))
+

@@ -53,11 +53,13 @@ def get_product(product_id: int):
 
 
 @app.post('/blogposts')
-def add_blogspot(blogspot: Blogspot):
+def add_blogspot(blogspot: Blogpost):
     if blogspot.category not in CATEGORIES:
         raise HTTPException(status_code=422, detail='Wrong category option')
-    if insert_new_blogspot(blogspot.name, blogspot.text, blogspot.category):
-        return {'blogpost': blogspot}
+    row_id =  insert_new_blogspot(blogspot.name, blogspot.text, blogspot.category)
+    if row_id:
+        output = {'id': row_id, 'name': blogspot.name, 'text': blogspot.text, 'category': blogspot.category}
+        return {'blogpost': output}
     else:
         raise HTTPException(status_code=404, detail='Error on insert')
 
@@ -66,14 +68,17 @@ def add_blogspot(blogspot: Blogspot):
 def add_product(product: Product):
     if product.category not in CATEGORIES:
         raise HTTPException(status_code=422, detail='Wrong category option')
-    if insert_new_product(product.brand, product.name, product.price, product.category, product.blogpost):
-        return {'product': product}
+    row_id = insert_new_product(product.brand, product.name, product.price, product.category, product.blogpost)
+    if row_id:
+        out = {'id': row_id, 'brand': product.brand, 'name': product.name, 'price': product.price,
+               'category': product.category, 'blogpost': product.blogpost}
+        return {'product': out}
     else:
         raise HTTPException(status_code=404, detail='Error on insert')
 
 
 @app.put('/blogposts/{blogspot_id}')
-def update_blogspot(blogpost: Blogspot, blogspot_id: int):
+def update_blogspot(blogpost: Blogpost, blogspot_id: int):
     if blogpost.category not in CATEGORIES:
         raise HTTPException(status_code=422, detail='Wrong category option')
     if update_blogspot_by_id(blogspot_id, blogpost):
@@ -93,12 +98,12 @@ def update_product(product: Product, product_id: int):
 
 
 @app.delete('/blogposts/{blogspot_id}')
-def delete_blogspot(blogspot_id):
+def delete_blogpost(blogspot_id):
     res = delete_blogspot_by_id(blogspot_id)
     if res:
         return {'blogpost': res}
     else:
-        raise HTTPException(status_code=404, detail='Error on delete')
+        raise HTTPException(status_code=404, detail='Error on delete, not found')
 
 
 @app.delete('/products/{product_id}')
@@ -107,4 +112,4 @@ def delete_product(product_id):
     if res:
         return {'product': res}
     else:
-        raise HTTPException(status_code=404, detail='Error on delete')
+        raise HTTPException(status_code=404, detail='Error on delete, not found')
